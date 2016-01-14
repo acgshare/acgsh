@@ -1,9 +1,10 @@
 [![Build Status](https://travis-ci.org/acgshare/acgsh.svg?branch=master)](https://travis-ci.org/acgshare/acgsh)
+[![Join the chat at https://gitter.im/acgshare/acgsh](https://badges.gitter.im/acgshare/acgsh.svg)](https://gitter.im/acgshare/acgsh?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ACGSH
 ==================
 
-[![Join the chat at https://gitter.im/acgshare/acgsh](https://badges.gitter.im/acgshare/acgsh.svg)](https://gitter.im/acgshare/acgsh?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 
 安装
 ----
