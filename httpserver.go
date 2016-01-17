@@ -46,18 +46,66 @@ func getPostsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 
 }
+func getCategoryPostsHandler(w http.ResponseWriter, r *http.Request) {
+	ss := r.URL.Path[19:]
 
+	params := strings.Split(ss, "/")
+
+	if len(params) < 2 {
+		http.Error(w, "Invalid params", 500)
+		return
+	}
+	if len(params[0]) == 0 || len(params[0]) > 50 || len(params[1]) == 0 {
+		http.Error(w, "Invalid params", 500)
+		return
+	}
+	u, _ := strconv.ParseUint(params[1], 10, 32)
+	data, err := db.GetCategoryPosts(params[0], uint(u)*posts_per_page, posts_per_page)
+	if err != nil {
+		log.Println("Error: getCategoryPostsHandler", err)
+		http.Error(w, "getCategoryPostsHandler db err", 500)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Write(data)
+
+}
+func getPubPostsHandler(w http.ResponseWriter, r *http.Request) {
+	ss := r.URL.Path[14:]
+	params := strings.Split(ss, "/")
+
+	if len(params) < 2 {
+		http.Error(w, "Invalid params", 500)
+		return
+	}
+	if len(params[0]) == 0 || len(params[0]) > 16 || len(params[1]) == 0 {
+		http.Error(w, "Invalid params", 500)
+		return
+	}
+	u, _ := strconv.ParseUint(params[1], 10, 32)
+	data, err := db.GetPubPosts(params[0], uint(u)*posts_per_page, posts_per_page)
+	if err != nil {
+		log.Println("Error: getCategoryPostsHandler", err)
+		http.Error(w, "getCategoryPostsHandler db err", 500)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Write(data)
+
+}
 func getPubReplyHandler(w http.ResponseWriter, r *http.Request) {
 	ss := r.URL.Path[14:]
 
 	params := strings.Split(ss, "&")
 
 	if len(params) < 2 {
-		http.Error(w, "Invalid params", 404)
+		http.Error(w, "Invalid params", 500)
 		return
 	}
 	if len(params[0]) == 0 || len(params[1]) == 0 {
-		http.Error(w, "Invalid params", 404)
+		http.Error(w, "Invalid params", 500)
 		return
 	}
 
@@ -94,7 +142,7 @@ func regPublisherHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	ss := r.URL.Path[9:]
 
-	if len(ss) < 1 {
+	if len(ss) < 1 || len(ss) >16 {
 		http.Error(w, "Invalid params", 404)
 		return
 	}
@@ -114,6 +162,9 @@ func startHttpServer() {
 	//http.Error(w, http.StatusText(500), 500)
 	http.HandleFunc("/api/", handler)
 	http.HandleFunc("/api/posts/", getPostsHandler)
+	http.HandleFunc("/api/categoryposts/", getCategoryPostsHandler)
+	http.HandleFunc("/api/pubposts/", getPubPostsHandler)
+
 	http.HandleFunc("/api/pubreply/", getPubReplyHandler)
 	http.HandleFunc("/api/publishers/", getPublishersHandler)
 	http.HandleFunc("/api/reg/", regPublisherHandler)

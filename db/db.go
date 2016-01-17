@@ -52,6 +52,22 @@ func Init() {
 			log.Printf("DB create PublishersReplyPosts bucket: %s", err)
 			return err
 		}
+		_, err = tx.CreateBucketIfNotExists([]byte("PublishersPostsIndex"))
+		if err != nil {
+			log.Printf("DB create PublishersPostsIndex bucket: %s", err)
+			return err
+		}
+		// Category of posts
+		_, err = tx.CreateBucketIfNotExists([]byte("CategoryPostsIndex"))
+		if err != nil {
+			log.Printf("DB create CategoryPostsIndex bucket: %s", err)
+			return err
+		}
+		_, err = tx.CreateBucketIfNotExists([]byte("NameKPostsIndex"))
+		if err != nil {
+			log.Printf("DB create NameKPostsIndex bucket: %s", err)
+			return err
+		}
 		return nil
 	})
 
@@ -207,43 +223,140 @@ func DeletePublishers(names *[]string) error {
 	return err
 }
 
-func AddPosts(posts *ShPosts) error {
-	err := db.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte("Posts"))
-		if bucket == nil {
-			return fmt.Errorf("Bucket Posts not found!")
-		}
 
-		for _, sp := range *posts {
+func AddPosts(posts *ShPosts) {
+	for _, sp := range *posts {
+		_ = db.Update(func(tx *bolt.Tx) error {
+			bucketP := tx.Bucket([]byte("Posts"))
+			if bucketP == nil {
+				return fmt.Errorf("Bucket Posts not found!")
+			}
+			bucketPPI := tx.Bucket([]byte("PublishersPostsIndex"))
+			if bucketPPI == nil {
+				return fmt.Errorf("Bucket PublishersPostsIndex not found!")
+			}
+			bucketCPI := tx.Bucket([]byte("CategoryPostsIndex"))
+			if bucketCPI == nil {
+				return fmt.Errorf("Bucket CategoryPostsIndex not found!")
+			}
+			bucketNKPI := tx.Bucket([]byte("NameKPostsIndex"))
+			if bucketNKPI == nil {
+				return fmt.Errorf("Bucket NameKPostsIndex not found!")
+			}
+
+			///////////////////////////////////////
+			// Put into Posts bucket
+			category:=getCategory(sp.Category)
+			sp.Category=category
 			//fmt.Printf("Value [%d] is [%s]\n", index, name)
 			jsonData, err := json.Marshal(sp)
 			if err != nil {
 				log.Println(err)
 				log.Printf("Error: DB addPosts Marshal: %+v\n", sp)
-				continue
+				return err
 			}
 			//			log.Printf("%s\n", jsonData)
 
-			bs := ui64tob(sp.Time)
-			bs = append(bs, ":"...)
-			bs = append(bs, sp.N...)
-			bs = append(bs, ":"...)
-			bs = append(bs, strconv.FormatInt(sp.K, 10)...)
-			err = bucket.Put(bs, jsonData)
+			id := ui64tob(sp.Time)
+			id = append(id, ":"...)
+			id = append(id, sp.N...)
+			id = append(id, ":"...)
+			id = append(id, strconv.FormatInt(sp.K, 10)...)
+			err = bucketP.Put(id, jsonData)
 			if err != nil {
 				log.Println(err)
-				log.Printf("Error: DB addPosts bucket.Put: %s : %s\n", bs, jsonData)
-				continue
+				log.Printf("Error: DB addPosts bucket.Put: %s : %s\n", id, jsonData)
+				return err
 			}
 			//			fmt.Printf("Value [%s] is [%s]\n", bs, jsonData)
-		}
 
-		return nil
-	})
+			///////////////////////////////////////
+			// Put into NameKPostsIndex bucket
+			nk := []byte{}
+			nk = append(nk, sp.N...)
+			nk = append(nk, ":"...)
+			nk = append(nk, strconv.FormatInt(sp.K, 10)...)
+			err = bucketNKPI.Put(nk, id)
+			if err != nil {
+				log.Println(err)
+				log.Printf("Error: DB addPosts NameKPostsIndex bucket.Put: %s : %s\n", nk, jsonData)
+				return err
+			}
 
-	return err
+			///////////////////////////////////////
+			// Put into PublishersPostsIndex bucket
+			bucketPP, err := bucketPPI.CreateBucketIfNotExists([]byte(sp.N))
+			if err != nil {
+				log.Printf("DB CreateBucketIfNotExists PublishersPostsIndex bucket: %s: %s\n", sp.N,err)
+				return err
+			}
+			err = bucketPP.Put(id, []byte{})
+			if err != nil {
+				log.Println(err)
+				log.Printf("Error: DB AddPosts PublishersPostsIndex bucket.Put: %s : %s\n", sp.N, id)
+				return err
+			}
+			///////////////////////////////////////
+			// Put into CategoryPostsIndex bucket
+
+			bucketCP, err := bucketCPI.CreateBucketIfNotExists([]byte(category))
+			if err != nil {
+				log.Printf("DB CreateBucketIfNotExists CategoryPostsIndex bucket: %s: %s\n", category,err)
+				return err
+			}
+			err = bucketCP.Put(id, []byte{})
+			if err != nil {
+				log.Println(err)
+				log.Printf("Error: DB AddPosts CategoryPostsIndex bucket.Put: %s : %s %s\n", sp.Category,category, id)
+				return err
+			}
+			return nil
+		})
+	}
+
 }
 
+func getCategory(str string) string {
+	/*
+	動畫
+	季度全集
+	漫畫
+	音樂
+	日劇
+	ＲＡＷ
+	遊戲
+	特攝
+	其他
+	*/
+	category:="其他"
+	if str == "動畫" || str=="动画" {
+		category="動畫"
+	}
+	if str == "季度全集" || str=="季度全集" {
+		category="季度全集"
+	}
+	if str == "漫畫" || str=="漫画" {
+		category="漫畫"
+	}
+	if str == "音樂" || str=="音乐"|| str=="動漫音樂"|| str=="动漫音乐"{
+		category="音樂"
+	}
+	if str == "日劇" || str=="日剧" {
+		category="日劇"
+	}
+	if str == "ＲＡＷ" || str=="RAW" {
+		category="ＲＡＷ"
+	}
+	if str == "遊戲" || str=="游戏" {
+		category="遊戲"
+	}
+	if str == "特攝" || str=="特摄" {
+		category="特攝"
+	}
+
+
+	return category
+}
 // todo: Check if reply post was reply to acgsh post in DB.
 func AddPublishersReplyPosts(posts *ShPubReplyPosts) error {
 	err := db.Update(func(tx *bolt.Tx) error {
@@ -321,6 +434,137 @@ func GetPosts(idx, n uint) ([]byte, error) {
 		return nil
 	})
 	buf = append(buf, "]"...)
+	return buf, err
+}
+
+func GetCategoryPosts(category string,idx, n uint) ([]byte, error) {
+	if n < 1 {
+		return []byte{}, fmt.Errorf("Invalid n")
+	}
+	bufIds := [][]byte{}
+	err := db.View(func(tx *bolt.Tx) error {
+		bucketCPI := tx.Bucket([]byte("CategoryPostsIndex"))
+		if bucketCPI == nil {
+			return fmt.Errorf("Bucket CategoryPostsIndex not found!")
+		}
+
+		bucketCP := bucketCPI.Bucket([]byte(category))
+		if bucketCP == nil {
+			//return fmt.Errorf("Bucket CategoryPostsIndex %s not found!",category)
+			return nil
+		}
+
+		cur := bucketCP.Cursor()
+
+		i := uint(0)
+		for k, _ := cur.Last(); k != nil; k, _ = cur.Prev() {
+			if i >= idx {
+				bufIds = append(bufIds, k)
+			}
+			i = i + 1
+			if i >= idx+n {
+				break
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return []byte{},err
+	}
+	if len(bufIds) == 0 {
+		return []byte("[]"),nil
+	}
+
+	buf := []byte("[")
+	err = db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte("Posts"))
+		if bucket == nil {
+			return fmt.Errorf("Bucket Posts not found!")
+		}
+
+		comma := []byte(",")
+
+		for _, id := range bufIds {
+			value := bucket.Get(id)
+			if value == nil {
+				continue
+			}
+			buf = append(buf, value...)
+			buf = append(buf, comma...)
+		}
+
+		return nil
+	})
+	buf=buf[:len(buf)-1]
+	buf = append(buf, "]"...)
+
+
+	return buf, err
+}
+func GetPubPosts(publisher string,idx, n uint) ([]byte, error) {
+	if n < 1 {
+		return []byte{}, fmt.Errorf("Invalid n")
+	}
+	bufIds := [][]byte{}
+	err := db.View(func(tx *bolt.Tx) error {
+		bucketPPI := tx.Bucket([]byte("PublishersPostsIndex"))
+		if bucketPPI == nil {
+			return fmt.Errorf("Bucket PublishersPostsIndex not found!")
+		}
+
+		bucketPP := bucketPPI.Bucket([]byte(publisher))
+		if bucketPP == nil {
+			//return fmt.Errorf("Bucket PublishersPostsIndex %s not found!",publisher)
+			return nil
+		}
+
+		cur := bucketPP.Cursor()
+
+		i := uint(0)
+		for k, _ := cur.Last(); k != nil; k, _ = cur.Prev() {
+			if i >= idx {
+				bufIds = append(bufIds, k)
+			}
+			i = i + 1
+			if i >= idx+n {
+				break
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return []byte{},err
+	}
+	if len(bufIds) == 0 {
+		return []byte("[]"),nil
+	}
+
+	buf := []byte("[")
+	err = db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte("Posts"))
+		if bucket == nil {
+			return fmt.Errorf("Bucket Posts not found!")
+		}
+
+		comma := []byte(",")
+
+		for _, id := range bufIds {
+			value := bucket.Get(id)
+			if value == nil {
+				continue
+			}
+			buf = append(buf, value...)
+			buf = append(buf, comma...)
+		}
+
+		return nil
+	})
+	buf=buf[:len(buf)-1]
+	buf = append(buf, "]"...)
+
+
 	return buf, err
 }
 

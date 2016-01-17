@@ -52,7 +52,7 @@ func syncTimeLine() {
 
 	newPosts, err := rpc.GetPosts(sync_posts_number, gup.data)
 	//log.Printf("%+v\n", presult)
-	if err != nil{
+	if err != nil {
 		log.Println(err)
 		log.Printf("Error: syncTimeLine GetPosts: %+v\n", gup.data)
 		return
@@ -136,11 +136,8 @@ func syncTimeLine() {
 	}
 
 	// Save posts to DB
-	err = db.AddPosts(&newShPosts)
-	if err != nil {
-		log.Println(err)
-		log.Printf("Error: syncTimeLine db.AddPosts: %+v\n", len(newShPosts))
-	}
+	db.AddPosts(&newShPosts)
+
 	err = db.AddPublishersReplyPosts(&newShPubReplyPosts)
 	if err != nil {
 		log.Println(err)
@@ -240,7 +237,7 @@ func runSyncTimeLine() {
 	for {
 		time.Sleep(60 * time.Second)
 		syncTimeLine()
-		
+
 	}
 }
 
