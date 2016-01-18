@@ -9,6 +9,7 @@ import (
 
 	"github.com/acgshare/acgsh/db"
 	"github.com/acgshare/acgsh/rpc"
+	"github.com/acgshare/acgsh/search"
 )
 
 const sync_posts_number = 2000
@@ -174,6 +175,9 @@ func syncTimeLine() {
 		log.Println(err)
 		log.Printf("Error: syncTimeLine: %+v\n", updatedPublishers)
 	}
+
+	// Indexing posts
+	search.Index(&newShPosts)
 
 }
 

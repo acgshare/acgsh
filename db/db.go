@@ -20,7 +20,7 @@ func itob(v int) []byte {
 	binary.BigEndian.PutUint64(b, uint64(v))
 	return b
 }
-func ui64tob(v uint64) []byte {
+func Ui64tob(v uint64) []byte {
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, v)
 	return b
@@ -223,7 +223,6 @@ func DeletePublishers(names *[]string) error {
 	return err
 }
 
-
 func AddPosts(posts *ShPosts) {
 	for _, sp := range *posts {
 		_ = db.Update(func(tx *bolt.Tx) error {
@@ -246,8 +245,8 @@ func AddPosts(posts *ShPosts) {
 
 			///////////////////////////////////////
 			// Put into Posts bucket
-			category:=getCategory(sp.Category)
-			sp.Category=category
+			category := getCategory(sp.Category)
+			sp.Category = category
 			//fmt.Printf("Value [%d] is [%s]\n", index, name)
 			jsonData, err := json.Marshal(sp)
 			if err != nil {
@@ -257,7 +256,7 @@ func AddPosts(posts *ShPosts) {
 			}
 			//			log.Printf("%s\n", jsonData)
 
-			id := ui64tob(sp.Time)
+			id := Ui64tob(sp.Time)
 			id = append(id, ":"...)
 			id = append(id, sp.N...)
 			id = append(id, ":"...)
@@ -287,7 +286,7 @@ func AddPosts(posts *ShPosts) {
 			// Put into PublishersPostsIndex bucket
 			bucketPP, err := bucketPPI.CreateBucketIfNotExists([]byte(sp.N))
 			if err != nil {
-				log.Printf("DB CreateBucketIfNotExists PublishersPostsIndex bucket: %s: %s\n", sp.N,err)
+				log.Printf("DB CreateBucketIfNotExists PublishersPostsIndex bucket: %s: %s\n", sp.N, err)
 				return err
 			}
 			err = bucketPP.Put(id, []byte{})
@@ -301,13 +300,13 @@ func AddPosts(posts *ShPosts) {
 
 			bucketCP, err := bucketCPI.CreateBucketIfNotExists([]byte(category))
 			if err != nil {
-				log.Printf("DB CreateBucketIfNotExists CategoryPostsIndex bucket: %s: %s\n", category,err)
+				log.Printf("DB CreateBucketIfNotExists CategoryPostsIndex bucket: %s: %s\n", category, err)
 				return err
 			}
 			err = bucketCP.Put(id, []byte{})
 			if err != nil {
 				log.Println(err)
-				log.Printf("Error: DB AddPosts CategoryPostsIndex bucket.Put: %s : %s %s\n", sp.Category,category, id)
+				log.Printf("Error: DB AddPosts CategoryPostsIndex bucket.Put: %s : %s %s\n", sp.Category, category, id)
 				return err
 			}
 			return nil
@@ -318,45 +317,45 @@ func AddPosts(posts *ShPosts) {
 
 func getCategory(str string) string {
 	/*
-	動畫
-	季度全集
-	漫畫
-	音樂
-	日劇
-	ＲＡＷ
-	遊戲
-	特攝
-	其他
+		動畫
+		季度全集
+		漫畫
+		音樂
+		日劇
+		ＲＡＷ
+		遊戲
+		特攝
+		其他
 	*/
-	category:="其他"
-	if str == "動畫" || str=="动画" {
-		category="動畫"
+	category := "其他"
+	if str == "動畫" || str == "动画" {
+		category = "動畫"
 	}
-	if str == "季度全集" || str=="季度全集" {
-		category="季度全集"
+	if str == "季度全集" || str == "季度全集" {
+		category = "季度全集"
 	}
-	if str == "漫畫" || str=="漫画" {
-		category="漫畫"
+	if str == "漫畫" || str == "漫画" {
+		category = "漫畫"
 	}
-	if str == "音樂" || str=="音乐"|| str=="動漫音樂"|| str=="动漫音乐"{
-		category="音樂"
+	if str == "音樂" || str == "音乐" || str == "動漫音樂" || str == "动漫音乐" {
+		category = "音樂"
 	}
-	if str == "日劇" || str=="日剧" {
-		category="日劇"
+	if str == "日劇" || str == "日剧" {
+		category = "日劇"
 	}
-	if str == "ＲＡＷ" || str=="RAW" {
-		category="ＲＡＷ"
+	if str == "ＲＡＷ" || str == "RAW" {
+		category = "ＲＡＷ"
 	}
-	if str == "遊戲" || str=="游戏" {
-		category="遊戲"
+	if str == "遊戲" || str == "游戏" {
+		category = "遊戲"
 	}
-	if str == "特攝" || str=="特摄" {
-		category="特攝"
+	if str == "特攝" || str == "特摄" {
+		category = "特攝"
 	}
-
 
 	return category
 }
+
 // todo: Check if reply post was reply to acgsh post in DB.
 func AddPublishersReplyPosts(posts *ShPubReplyPosts) error {
 	err := db.Update(func(tx *bolt.Tx) error {
@@ -436,8 +435,39 @@ func GetPosts(idx, n uint) ([]byte, error) {
 	buf = append(buf, "]"...)
 	return buf, err
 }
+func GetPostsWithIds(ids [][]byte) ([]byte, error) {
 
-func GetCategoryPosts(category string,idx, n uint) ([]byte, error) {
+	if len(ids) == 0 {
+		return []byte("[]"), nil
+	}
+
+	buf := []byte("[")
+	err := db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte("Posts"))
+		if bucket == nil {
+			return fmt.Errorf("Bucket Posts not found!")
+		}
+
+		comma := []byte(",")
+
+		for _, id := range ids {
+			value := bucket.Get(id)
+			if value == nil {
+				continue
+			}
+			buf = append(buf, value...)
+			buf = append(buf, comma...)
+		}
+
+		return nil
+	})
+	buf = buf[:len(buf)-1]
+	buf = append(buf, "]"...)
+
+	return buf, err
+}
+
+func GetCategoryPosts(category string, idx, n uint) ([]byte, error) {
 	if n < 1 {
 		return []byte{}, fmt.Errorf("Invalid n")
 	}
@@ -470,39 +500,13 @@ func GetCategoryPosts(category string,idx, n uint) ([]byte, error) {
 		return nil
 	})
 	if err != nil {
-		return []byte{},err
-	}
-	if len(bufIds) == 0 {
-		return []byte("[]"),nil
+		return []byte{}, err
 	}
 
-	buf := []byte("[")
-	err = db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte("Posts"))
-		if bucket == nil {
-			return fmt.Errorf("Bucket Posts not found!")
-		}
+	return GetPostsWithIds(bufIds)
 
-		comma := []byte(",")
-
-		for _, id := range bufIds {
-			value := bucket.Get(id)
-			if value == nil {
-				continue
-			}
-			buf = append(buf, value...)
-			buf = append(buf, comma...)
-		}
-
-		return nil
-	})
-	buf=buf[:len(buf)-1]
-	buf = append(buf, "]"...)
-
-
-	return buf, err
 }
-func GetPubPosts(publisher string,idx, n uint) ([]byte, error) {
+func GetPubPosts(publisher string, idx, n uint) ([]byte, error) {
 	if n < 1 {
 		return []byte{}, fmt.Errorf("Invalid n")
 	}
@@ -535,37 +539,9 @@ func GetPubPosts(publisher string,idx, n uint) ([]byte, error) {
 		return nil
 	})
 	if err != nil {
-		return []byte{},err
+		return []byte{}, err
 	}
-	if len(bufIds) == 0 {
-		return []byte("[]"),nil
-	}
-
-	buf := []byte("[")
-	err = db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte("Posts"))
-		if bucket == nil {
-			return fmt.Errorf("Bucket Posts not found!")
-		}
-
-		comma := []byte(",")
-
-		for _, id := range bufIds {
-			value := bucket.Get(id)
-			if value == nil {
-				continue
-			}
-			buf = append(buf, value...)
-			buf = append(buf, comma...)
-		}
-
-		return nil
-	})
-	buf=buf[:len(buf)-1]
-	buf = append(buf, "]"...)
-
-
-	return buf, err
+	return GetPostsWithIds(bufIds)
 }
 
 func GetPublishersReplyPosts(name, k string) ([]byte, error) {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/acgshare/acgsh/db"
 	"github.com/acgshare/acgsh/rpc"
+	"github.com/acgshare/acgsh/search"
 	"log"
 	"net/http"
 	"strconv"
@@ -95,10 +96,71 @@ func getPubPostsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 
 }
+
+func searchHandler(w http.ResponseWriter, r *http.Request) {
+	ss := r.URL.Path[12:]
+	params := strings.SplitN(ss, "/",2)
+
+	if len(params) < 2 {
+		http.Error(w, "Invalid params", 500)
+		return
+	}
+	if len(params[0]) == 0 || len(params[1]) == 0 {
+		http.Error(w, "Invalid params", 500)
+		return
+	}
+
+	u, _ := strconv.Atoi(params[0])
+
+	searchStr:=""
+	terms := strings.Split(params[1], " ")
+	for _, term := range terms {
+		//fmt.Println(term)
+		if len(term)<1{
+			continue
+		}
+		if term[:1]=="+"{
+			if len(term[1:]) == 0 {
+				continue
+			}
+			searchStr+=(" +\""+term[1:]+"\"")
+			continue
+		}
+		if term[:1]=="-"{
+			if len(term[1:]) == 0 {
+				continue
+			}
+			searchStr+=(" -\""+term[1:]+"\"")
+			continue
+		}
+		searchStr+=(" +\""+term+"\"")
+
+	}
+	//fmt.Println(searchStr)
+
+	ids, err := search.Search(searchStr,posts_per_page,u*posts_per_page)
+	if err != nil {
+		//log.Println("Error: searchHandler", err)
+		http.Error(w, "searchHandler search err", 500)
+		return
+	}
+
+	data, err := db.GetPostsWithIds(ids)
+	if err != nil {
+		log.Println("Error: searchHandler", err)
+		http.Error(w, "searchHandler db err", 500)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Write(data)
+
+}
+
 func getPubReplyHandler(w http.ResponseWriter, r *http.Request) {
 	ss := r.URL.Path[14:]
 
-	params := strings.Split(ss, "&")
+	params := strings.Split(ss, "/")
 
 	if len(params) < 2 {
 		http.Error(w, "Invalid params", 500)
@@ -142,7 +204,7 @@ func regPublisherHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	ss := r.URL.Path[9:]
 
-	if len(ss) < 1 || len(ss) >16 {
+	if len(ss) < 1 || len(ss) > 16 {
 		http.Error(w, "Invalid params", 404)
 		return
 	}
@@ -164,6 +226,7 @@ func startHttpServer() {
 	http.HandleFunc("/api/posts/", getPostsHandler)
 	http.HandleFunc("/api/categoryposts/", getCategoryPostsHandler)
 	http.HandleFunc("/api/pubposts/", getPubPostsHandler)
+	http.HandleFunc("/api/search/", searchHandler)
 
 	http.HandleFunc("/api/pubreply/", getPubReplyHandler)
 	http.HandleFunc("/api/publishers/", getPublishersHandler)

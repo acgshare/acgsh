@@ -6,6 +6,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/acgshare/acgsh/db"
 	"github.com/acgshare/acgsh/rpc"
+	"github.com/acgshare/acgsh/search"
 )
 
 var adminTwisterUsername string
@@ -35,6 +36,9 @@ func main() {
 	//Init DB
 	db.Init()
 	defer db.Close()
+
+	//Init search engine
+	search.Init()
 
 	rpc.SetAddress(config.TwisterServer)
 
