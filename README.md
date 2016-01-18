@@ -38,7 +38,7 @@ ACGSH
 
     acgsh
     
-acgsh会在当前目录下建立acgsh_bolt.db数据库文件并同步你的twister账号follow的账号内容到数据库。    
+acgsh会在当前目录下建立acgsh_bolt.db数据库文件和acgsh.bleve索引文件夹并同步你的twister账号follow的账号内容到数据库。    
     
 推荐使用[Supervisor](http://supervisord.org/) 来使acgsh在后台工作并监控acgsh工作状态。
     
