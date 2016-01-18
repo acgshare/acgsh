@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/acgshare/acgsh/db"
-	"github.com/blevesearch/bleve"
+	"github.com/acgshare/bleve"
 )
 
 var index bleve.Index
